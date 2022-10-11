@@ -1,8 +1,10 @@
-MineBuddiesBot
-=====
-Manages tickets right now.
 
-Example of adding panel:
-`/createpanel name:General Support emoji: questions:What Is Your IGN, What Server?*`
+# MineBuddiesBot
+The main MineBuddies discord bot. Manages tickets and more.
 
-`*` Means required
+How to create a panel \
+`/createpanel name:General Support emoji: questions:What Is Your IGN, What Server?*`\
+
+`*` Means required \
+Must Have Capitals For Questions!!
+
