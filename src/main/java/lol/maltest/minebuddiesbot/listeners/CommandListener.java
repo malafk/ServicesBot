@@ -130,14 +130,21 @@ public class CommandListener extends ListenerAdapter {
             eb.setDescription("> Press the appropriate button to start!");
             eb.setColor(Color.decode("#2f3136"));
 
+            int count = 1;
             ArrayList<Button> buttons = new ArrayList<>();
+            ArrayList<Button> buttons2 = new ArrayList<>();
 
             for(PanelObject panelObject : discordBot.panelObjects) {
-                buttons.add(panelObject.getButton());
+                if(count >= 5) {
+                    buttons2.add(panelObject.getButton());
+                } else {
+                    buttons.add(panelObject.getButton());
+                }
+                count++;
             }
 
             event.reply("Done!").queue();
-            event.getChannel().sendMessageEmbeds(eb.build()).addActionRow(buttons).queue();
+            event.getChannel().sendMessageEmbeds(eb.build()).addActionRow(buttons).addActionRow(buttons2).queue();
         }
     }
 
