@@ -250,7 +250,7 @@ public class CommandListener extends ListenerAdapter {
     public void onReady(ReadyEvent e) {
         guild = jda.getGuildById(discordBot.botConfig.getString("guild"));
         category = guild.getCategoryById(discordBot.botConfig.getString("opened_category"));
-        closedCategory = guild.getCategoryById(discordBot.botConfig.getString("closed_category/"));
+        closedCategory = guild.getCategoryById(discordBot.botConfig.getString("closed_category"));
 
 
         if(guild != null) {
