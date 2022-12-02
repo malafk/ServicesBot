@@ -1,6 +1,6 @@
 
-# MineBuddiesBot
-The main MineBuddies discord bot. Manages tickets and more.
+# MalCodingServices
+The main MalCodingServices discord bot. Manages orders and more.
 
 How to create a panel \
 `/createpanel name:General Support emoji: questions:What Is Your IGN, What Server?*` 
