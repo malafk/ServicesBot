@@ -8,3 +8,5 @@ How to create a panel \
 `*` Means required \
 Must Have Capitals For Questions!!
 
+How to install \
+Made a folder drag the Jar file in, create a subfolder called data and drag the config.yml in and customise it.
