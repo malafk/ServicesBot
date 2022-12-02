@@ -10,6 +10,8 @@ import lol.maltest.minebuddiesbot.impl.PanelObject;
 import lol.maltest.minebuddiesbot.listeners.CommandListener;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 
 import javax.security.auth.login.LoginException;
@@ -22,6 +24,8 @@ import java.util.HashMap;
 public class DiscordBot {
 
     public JDA jda;
+    public Guild guild;
+    public Role supportRole;
     public YamlDocument botConfig;
     public ArrayList<String> blacklistedUsers = new ArrayList<>();
     public ArrayList<PanelObject> panelObjects = new ArrayList<>();

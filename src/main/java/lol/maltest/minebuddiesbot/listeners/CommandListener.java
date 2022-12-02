@@ -2,10 +2,11 @@ package lol.maltest.minebuddiesbot.listeners;
 
 import lol.maltest.minebuddiesbot.DiscordBot;
 import lol.maltest.minebuddiesbot.impl.PanelObject;
+import lol.maltest.minebuddiesbot.util.EmbedHelper;
+import lol.maltest.minebuddiesbot.util.EmojiUtil;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
@@ -14,6 +15,7 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
@@ -22,13 +24,19 @@ import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 
 import java.awt.*;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class CommandListener extends ListenerAdapter {
+
     private DiscordBot discordBot;
     private JDA jda;
+
+    Category category;
+    Category closedCategory;
+    TextChannel logsChannel;
 
     public CommandListener(DiscordBot discordBot, JDA jda) {
         this.discordBot = discordBot;
@@ -39,7 +47,7 @@ public class CommandListener extends ListenerAdapter {
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
         if (event.getName().equals("createpanel")) {
             if(!event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
-                event.reply(":x: You need `ADMINISTRATOR` permissions for this!").setEphemeral(true).queue();
+                event.reply(EmojiUtil.CROSS.emoji + " You need `ADMINISTRATOR` permissions for this!").setEphemeral(true).queue();
                 return;
             }
 
@@ -62,11 +70,38 @@ public class CommandListener extends ListenerAdapter {
 
             discordBot.panelObjects.add(new PanelObject(panelId, emoji.getAsString(), questions));
 
-            event.reply(":white_check_mark: Created that panel! Now you need to repost the Tickets Message").queue();
+            event.reply(EmojiUtil.TICK.emoji + " Created that panel! Now you need to repost the Tickets Message").queue();
+        }
+        if(event.getName().equals("claim")) {
+            if(!event.getMember().getRoles().contains(discordBot.supportRole)) {
+                event.reply(EmojiUtil.CROSS.emoji + " You need the support role for this!").setEphemeral(true).queue();
+                return;
+            }
+
+            event.getChannel().asTextChannel().getManager().setTopic("Claimed by " + event.getMember().getEffectiveName() + " | " + new Date().getTime() / 1000).queue();
+
+            EmbedBuilder eb = new EmbedBuilder();
+            eb.setTitle("Order Claimed");
+            eb.setDescription(EmojiUtil.TICK.emoji + " Your order has been claimed by **<@" + event.getMember().getId() + ">**! They will complete this order for you.");
+            eb.setColor(Color.decode("#2f3136"));
+            event.replyEmbeds(eb.build()).queue();
+        }
+        if(event.getName().equals("generateinvoice")) {
+            if(!event.getMember().hasPermission(Permission.MANAGE_PERMISSIONS)) {
+                event.reply(EmojiUtil.CROSS.emoji + " You need `MANAGE_PERMISSIONS` permissions for this!").setEphemeral(true).queue();
+                return;
+            }
+            OptionMapping price = event.getOption("price");
+
+            EmbedBuilder eb = new EmbedBuilder();
+            eb.setTitle("Invoice");
+            eb.setDescription(EmojiUtil.DOLLAR.emoji + " Thank you for working with Mal's Coding Services. Please send **£" + price.getAsDouble() + "** to **mattd.123@yahoo.com** via PayPal. Think we did good? Tips are greatly appreciated!");
+            eb.setColor(Color.decode("#2f3136"));
+            event.replyEmbeds(eb.build()).queue();
         }
         if (event.getName().equals("blacklist")) {
             if(!event.getMember().hasPermission(Permission.BAN_MEMBERS)) {
-                event.reply(":x: You need `BAN_MEMBERS` permissions for this!").setEphemeral(true).queue();
+                event.reply(EmojiUtil.CROSS.emoji + " You need `BAN_MEMBERS` permissions for this!").setEphemeral(true).queue();
                 return;
             }
             OptionMapping name = event.getOption("user");
@@ -82,11 +117,11 @@ public class CommandListener extends ListenerAdapter {
                 throw new RuntimeException(e);
             }
             discordBot.blacklistedUsers.add(name.getAsMember().getId());
-            event.reply("✅ Blacklisted " + name.getAsMember().getAsMention() + " from using tickets!").queue();
+            event.reply(EmojiUtil.TICK.emoji + " Blacklisted " + name.getAsMember().getAsMention() + " from using tickets!").queue();
         }
         if (event.getName().equals("unblacklist")) {
             if(!event.getMember().hasPermission(Permission.BAN_MEMBERS)) {
-                event.reply(":x: You need `BAN_MEMBERS` permissions for this!").setEphemeral(true).queue();
+                event.reply(EmojiUtil.CROSS.emoji + " You need `BAN_MEMBERS` permissions for this!").setEphemeral(true).queue();
                 return;
             }
             OptionMapping name = event.getOption("user");
@@ -100,34 +135,42 @@ public class CommandListener extends ListenerAdapter {
                 throw new RuntimeException(e);
             }
             discordBot.blacklistedUsers.remove(name.getAsMember().getId());
-            event.reply("✅ Unblacklisted " + name.getAsMember().getAsMention() + " from using tickets!").queue();
+            event.reply(EmojiUtil.TICK.emoji + " Unblacklisted " + name.getAsMember().getAsMention() + " from using tickets!").queue();
         }
         if (event.getName().equals("adduser")) {
             if(event.getChannel().asTextChannel().getParentCategory().getId().equals(category.getId())) {
                 OptionMapping name = event.getOption("user");
-                event.getChannel().asTextChannel().getManager().putPermissionOverride(name.getAsMember(), EnumSet.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND), null).queue();
-                event.reply(":white_check_mark: Added " + name.getAsMember().getAsMention() + " to the ticket!").queue();
+                event.getChannel().asTextChannel().upsertPermissionOverride(name.getAsMember()).setAllowed(Permission.VIEW_CHANNEL).queue();
+                event.reply(EmojiUtil.TICK.emoji + " Added " + name.getAsMember().getAsMention() + " to the ticket!").queue();
             }
         }
         if (event.getName().equals("removeuser")) {
             if(event.getChannel().asTextChannel().getParentCategory().getId().equals(category.getId())) {
                 OptionMapping name = event.getOption("user");
-                event.getChannel().asTextChannel().getManager().removePermissionOverride(name.getAsMember()).queue();
-                event.reply(":white_check_mark: Removed " + name.getAsMember().getAsMention() + " from the ticket!").queue();
+                event.getChannel().asTextChannel().upsertPermissionOverride(name.getAsMember()).setDenied(Permission.VIEW_CHANNEL).queue();
+                event.reply(EmojiUtil.TICK.emoji + " Removed " + name.getAsMember().getAsMention() + " from the ticket!").queue();
             }
         }
         if(event.getName().equals("displaytickets")) {
             if(!event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
-                event.reply(":x: You need `ADMINISTRATOR` permissions for this!").setEphemeral(true).queue();
+                event.reply(EmojiUtil.CROSS.emoji + " You need `ADMINISTRATOR` permissions for this!").setEphemeral(true).queue();
                 return;
             }
             if(discordBot.botConfig.getSection("panel").getKeys().size() == 0) {
-                event.reply(":x: There is no ticket panels!").setEphemeral(true).queue();
+                event.reply(EmojiUtil.CROSS.emoji + " There is no ticket panels!").setEphemeral(true).queue();
             }
 
             EmbedBuilder eb = new EmbedBuilder();
             eb.setTitle("Open a ticket");
-            eb.setDescription("> Press the appropriate button to start!");
+            eb.setDescription("At MineBuddies players are our first priority so if you have any problems please do not hesitate to open a support ticket and a staff member will assist you as soon as possible. Please add as much detail you can on the form.\n" +
+                    "\nPlease choose the right topic as you will get assisted quicker.\n" +
+                    "\n\uD83D\uDEE1 **General Support**: If you have a question how to do something or any other casual server questions, open this type of support ticket.\n" +
+                    "\n\uD83D\uDC64 **Player Report**: Suspect a player is cheating or is someone breaking rules, open this type of support ticket.\n" +
+                    "\n\uD83D\uDC1E **Bug Report**: If you have found a server bug then you can create this type of ticket to help us improve the server. You may receive rewards for reporting bugs depending on the severity.\n" +
+                    "\n\uD83D\uDD75 **Appeal**: If you think you were wrongly punished or think you deserve a second chance, open this type of support ticket.\n" +
+                    "\n\uD83D\uDC40 **Staff Report**: If you think a staff member is abusing, open this type of support ticket. If the \"abusing\" staff member closes your ticket please contact a higher up.\n" +
+                    "\n\uD83D\uDEA8 **Purchase Support**: If you believe there is a problem with your purchase and have waited over 15 minutes, open this type of support ticket.\n" +
+                    "\nWe will try to reply as fast as possible. Please excessively don't ping staff members.");
             eb.setColor(Color.decode("#2f3136"));
 
             int count = 1;
@@ -154,7 +197,7 @@ public class CommandListener extends ListenerAdapter {
             String button = panelObject.nameId + "_button";
             if (button.equals(event.getButton().getId())) {
                 if(discordBot.blacklistedUsers.contains(event.getMember().getId())) {
-                    event.reply(":x: You are blacklisted from using tickets!").setEphemeral(true).queue();
+                    event.reply(EmojiUtil.CROSS.emoji + " You are blacklisted from using tickets!").setEphemeral(true).queue();
                     return;
                 }
                 event.replyModal(panelObject.getPanelModal()).queue();
@@ -163,7 +206,7 @@ public class CommandListener extends ListenerAdapter {
         }
         if(event.getButton().getId().startsWith("close_")) {
             String channelId = event.getButton().getId().replace("close_", "");
-            TextChannel textChannel = guild.getTextChannelById(channelId);
+            TextChannel textChannel = discordBot.guild.getTextChannelById(channelId);
 
             EmbedBuilder closeConfirm = new EmbedBuilder();
             closeConfirm.setColor(Color.decode("#2f3136"));
@@ -175,7 +218,7 @@ public class CommandListener extends ListenerAdapter {
         }
         if(event.getButton().getId().startsWith("confirm_")) {
             String channelId = event.getButton().getId().replace("confirm_", "");
-            TextChannel textChannel = guild.getTextChannelById(channelId);
+            TextChannel textChannel = discordBot.guild.getTextChannelById(channelId);
             textChannel.getManager().setParent(closedCategory).queue();
 
             Button button = Button.secondary("reopen_" + textChannel.getId(), "Re Open Ticket").withEmoji(Emoji.fromFormatted("\uD83D\uDD10"));
@@ -190,7 +233,7 @@ public class CommandListener extends ListenerAdapter {
         }
         if(event.getButton().getId().startsWith("reopen_")) {
             String channelId = event.getButton().getId().replace("reopen_", "");
-            TextChannel textChannel = guild.getTextChannelById(channelId);
+            TextChannel textChannel = discordBot.guild.getTextChannelById(channelId);
             textChannel.getManager().setParent(category).queue();
 
             EmbedBuilder opened = new EmbedBuilder();
@@ -203,12 +246,11 @@ public class CommandListener extends ListenerAdapter {
         }
         if(event.getButton().getId().startsWith("delete_")) {
             String channelId = event.getButton().getId().replace("delete_", "");
-            TextChannel textChannel = guild.getTextChannelById(channelId);
+            TextChannel textChannel = discordBot.guild.getTextChannelById(channelId);
 
             event.reply("This channel will be deleted in 5 seconds.").queue();
 
             textChannel.delete().queueAfter(5, TimeUnit.SECONDS);
-            return;
         }
     }
 
@@ -217,7 +259,10 @@ public class CommandListener extends ListenerAdapter {
         for(PanelObject panelObject : discordBot.panelObjects) {
             String modalId = panelObject.nameId + "_modal";
             if(modalId.equals(event.getModalId())) {
-                TextChannel textChannel = category.createTextChannel("ticket-" + event.getMember().getEffectiveName()).complete();
+                TextChannel textChannel = category.createTextChannel("order-" + event.getMember().getEffectiveName()).complete();
+                textChannel.getManager().putPermissionOverride(event.getMember(), EnumSet.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND), null).queue();
+                textChannel.upsertPermissionOverride(event.getGuild().getPublicRole()).setDenied(Permission.VIEW_CHANNEL).queue();
+                textChannel.upsertPermissionOverride(event.getMember()).setAllowed(Permission.VIEW_CHANNEL).queue();
                 createEmbed(panelObject, textChannel, event.getValues());
                 event.reply("Created ticket " + textChannel.getAsMention() + "!").setEphemeral(true).queue();
             }
@@ -248,47 +293,55 @@ public class CommandListener extends ListenerAdapter {
         Button button = Button.danger("close_" + textChannel.getId(), "Close Ticket").withEmoji(Emoji.fromFormatted("\uD83D\uDD12"));
 
         textChannel.sendMessageEmbeds(eb.build(), questions.build()).addActionRow(button).queue();
+        textChannel.sendMessage("<@&1031964996583821383>").queue();
     }
 
-    Category category;
-    Category closedCategory;
-    Guild guild;
     @Override
     public void onReady(ReadyEvent e) {
-        guild = jda.getGuildById(discordBot.botConfig.getString("guild"));
-        category = guild.getCategoryById(discordBot.botConfig.getString("opened_category"));
-        closedCategory = guild.getCategoryById(discordBot.botConfig.getString("closed_category"));
+        discordBot.guild = jda.getGuildById(discordBot.botConfig.getString("guild"));
+        discordBot.supportRole = discordBot.guild.getRoleById("1031964996583821383");
+        category = discordBot.guild.getCategoryById(discordBot.botConfig.getString("opened_category"));
+        closedCategory = discordBot.guild.getCategoryById(discordBot.botConfig.getString("closed_category"));
+        logsChannel = discordBot.guild.getTextChannelById(discordBot.botConfig.getString("logs_channel"));
 
 
-        if(guild != null) {
-            guild.upsertCommand("createpanel", "Add answer")
+        if(discordBot.guild != null) {
+            discordBot.guild.upsertCommand("createpanel", "Add answer")
                     .addOption(OptionType.STRING, "name", "The name of panel", true)
                     .addOption(OptionType.STRING, "emoji", "Emoji for button", true)
                     .addOption(OptionType.STRING, "questions", "Questions",true)
                     .queue();
 
-            guild.upsertCommand("displaytickets", "Create the embed for tickets")
+            discordBot.guild.upsertCommand("generateinvoice", "Create a invoice")
+                    .addOption(OptionType.NUMBER, "price", "The price for the invoice", true)
                     .queue();
 
-            guild.upsertCommand("adduser", "Add someone to ticket")
+            discordBot.guild.upsertCommand("claim", "Claim a order")
+                    .queue();
+
+            discordBot.guild.upsertCommand("displaytickets", "Create the embed for tickets")
+                    .queue();
+
+            discordBot.guild.upsertCommand("adduser", "Add someone to ticket")
                     .addOption(OptionType.MENTIONABLE, "user", "The user to add", true)
                     .queue();
 
-            guild.upsertCommand("removeuser", "Remove someone to ticket")
+            discordBot.guild.upsertCommand("removeuser", "Remove someone to ticket")
                     .addOption(OptionType.MENTIONABLE, "user", "The user to remove", true)
                     .queue();
 
-            guild.upsertCommand("blacklist", "Blacklist user from opening tickets")
+            discordBot.guild.upsertCommand("blacklist", "Blacklist user from opening tickets")
                     .addOption(OptionType.MENTIONABLE, "user", "The user to blacklist", true)
                     .queue();
 
-            guild.upsertCommand("unblacklist", "Unblacklist user from opening tickets")
+            discordBot.guild.upsertCommand("unblacklist", "Unblacklist user from opening tickets")
                     .addOption(OptionType.MENTIONABLE, "user", "The user to unblacklist", true)
                     .queue();
 
-            System.out.println("Registered commands.");
+            System.out.println("Registered commands for guild " + discordBot.guild.getName() + ".");
         } else {
-            System.out.println(guild.getId());
+            System.out.println("Guild is null make sure the ID is correct");
         }
+        logsChannel.sendMessageEmbeds(new EmbedHelper().setTitle("Bot has started").setDescription(EmojiUtil.TICK.emoji + " Bot has started!").setColor(Color.decode("#6ebce3")).setTimestamp(Instant.now()).build()).queue();
     }
 }
