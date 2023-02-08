@@ -1,4 +1,4 @@
-package lol.maltest.minebuddiesbot.impl;
+package lol.maltest.servicesbot.impl;
 
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
@@ -7,7 +7,6 @@ import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.components.text.TextInput;
 import net.dv8tion.jda.api.interactions.components.text.TextInputStyle;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 public class PanelObject {

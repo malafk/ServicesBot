@@ -1,9 +1,9 @@
-package lol.maltest.minebuddiesbot.listeners;
+package lol.maltest.servicesbot.listeners;
 
-import lol.maltest.minebuddiesbot.DiscordBot;
-import lol.maltest.minebuddiesbot.impl.PanelObject;
-import lol.maltest.minebuddiesbot.util.EmbedHelper;
-import lol.maltest.minebuddiesbot.util.EmojiUtil;
+import lol.maltest.servicesbot.DiscordBot;
+import lol.maltest.servicesbot.impl.PanelObject;
+import lol.maltest.servicesbot.util.EmbedHelper;
+import lol.maltest.servicesbot.util.EmojiUtil;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
@@ -15,10 +15,8 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
-import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 

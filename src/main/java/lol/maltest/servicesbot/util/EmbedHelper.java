@@ -1,4 +1,4 @@
-package lol.maltest.minebuddiesbot.util;
+package lol.maltest.servicesbot.util;
 
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;

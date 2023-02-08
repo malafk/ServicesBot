@@ -1,4 +1,4 @@
-package lol.maltest.minebuddiesbot;
+package lol.maltest.servicesbot;
 
 public class App {
     public static void main(String[] args) {

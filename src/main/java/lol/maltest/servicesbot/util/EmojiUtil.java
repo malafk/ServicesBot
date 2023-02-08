@@ -1,4 +1,4 @@
-package lol.maltest.minebuddiesbot.util;
+package lol.maltest.servicesbot.util;
 
 public enum EmojiUtil {
 
