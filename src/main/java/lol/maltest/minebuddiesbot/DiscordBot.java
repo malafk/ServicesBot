@@ -30,6 +30,8 @@ public class DiscordBot {
     public ArrayList<String> blacklistedUsers = new ArrayList<>();
     public ArrayList<PanelObject> panelObjects = new ArrayList<>();
 
+    public String ticketPrefix;
+
     public DiscordBot() {
 
         try {
@@ -38,6 +40,8 @@ public class DiscordBot {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        ticketPrefix = botConfig.getString("prefix");
 
         jda = JDABuilder.createLight(botConfig.getString("token"), GatewayIntent.GUILD_MESSAGES, GatewayIntent.DIRECT_MESSAGES, GatewayIntent.MESSAGE_CONTENT).build();
 

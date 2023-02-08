@@ -4,5 +4,7 @@ guild: "1027941880866017431"
 logs_channel: "1048289917677088829"
 opened_category: "1029178780612300810"
 closed_category: "1029182646229684287"
+support_role: "1068585697155485770"
+prefix: "Order"
 blacklisted:
 panel:

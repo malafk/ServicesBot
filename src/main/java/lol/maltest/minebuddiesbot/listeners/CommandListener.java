@@ -37,10 +37,12 @@ public class CommandListener extends ListenerAdapter {
     Category category;
     Category closedCategory;
     TextChannel logsChannel;
+    String supportRolePing;
 
     public CommandListener(DiscordBot discordBot, JDA jda) {
         this.discordBot = discordBot;
         this.jda = jda;
+        this.supportRolePing = "<@&" + discordBot.botConfig.getString("support_role") + ">";
     }
 
     @Override
@@ -78,11 +80,11 @@ public class CommandListener extends ListenerAdapter {
                 return;
             }
 
-            event.getChannel().asTextChannel().getManager().setTopic("Claimed by " + event.getMember().getEffectiveName() + " | " + new Date().getTime() / 1000).queue();
+            event.getChannel().asTextChannel().getManager().setTopic("Claimed by " + event.getMember().getEffectiveName() + " | <t:" + new Date().getTime() / 1000 + ":F>").queue();
 
             EmbedBuilder eb = new EmbedBuilder();
-            eb.setTitle("Order Claimed");
-            eb.setDescription(EmojiUtil.TICK.emoji + " Your order has been claimed by **<@" + event.getMember().getId() + ">**! They will complete this order for you.");
+            eb.setTitle(discordBot.ticketPrefix + " Claimed");
+            eb.setDescription(EmojiUtil.TICK.emoji + " Your " + discordBot.ticketPrefix + " has been claimed by **<@" + event.getMember().getId() + ">**! They will complete this "+ discordBot.ticketPrefix + " for you.");
             eb.setColor(Color.decode("#2f3136"));
             event.replyEmbeds(eb.build()).queue();
         }
@@ -138,6 +140,10 @@ public class CommandListener extends ListenerAdapter {
             event.reply(EmojiUtil.TICK.emoji + " Unblacklisted " + name.getAsMember().getAsMention() + " from using tickets!").queue();
         }
         if (event.getName().equals("adduser")) {
+            if(!isInTickets(event.getChannel().asTextChannel().getParentCategoryIdLong()) && event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+                event.reply(EmojiUtil.CROSS.emoji + " You cannot add users here!").queue();
+                return;
+            }
             if(event.getChannel().asTextChannel().getParentCategory().getId().equals(category.getId())) {
                 OptionMapping name = event.getOption("user");
                 event.getChannel().asTextChannel().upsertPermissionOverride(name.getAsMember()).setAllowed(Permission.VIEW_CHANNEL).queue();
@@ -145,6 +151,10 @@ public class CommandListener extends ListenerAdapter {
             }
         }
         if (event.getName().equals("removeuser")) {
+            if(!isInTickets(event.getChannel().asTextChannel().getParentCategoryIdLong()) && event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+                event.reply(EmojiUtil.CROSS.emoji + " You cannot add users here!").queue();
+                return;
+            }
             if(event.getChannel().asTextChannel().getParentCategory().getId().equals(category.getId())) {
                 OptionMapping name = event.getOption("user");
                 event.getChannel().asTextChannel().upsertPermissionOverride(name.getAsMember()).setDenied(Permission.VIEW_CHANNEL).queue();
@@ -259,7 +269,7 @@ public class CommandListener extends ListenerAdapter {
         for(PanelObject panelObject : discordBot.panelObjects) {
             String modalId = panelObject.nameId + "_modal";
             if(modalId.equals(event.getModalId())) {
-                TextChannel textChannel = category.createTextChannel("order-" + event.getMember().getEffectiveName()).complete();
+                TextChannel textChannel = category.createTextChannel(discordBot.ticketPrefix + "-" + event.getMember().getEffectiveName()).complete();
                 textChannel.getManager().putPermissionOverride(event.getMember(), EnumSet.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND), null).queue();
                 textChannel.upsertPermissionOverride(event.getGuild().getPublicRole()).setDenied(Permission.VIEW_CHANNEL).queue();
                 textChannel.upsertPermissionOverride(event.getMember()).setAllowed(Permission.VIEW_CHANNEL).queue();
@@ -293,7 +303,11 @@ public class CommandListener extends ListenerAdapter {
         Button button = Button.danger("close_" + textChannel.getId(), "Close Ticket").withEmoji(Emoji.fromFormatted("\uD83D\uDD12"));
 
         textChannel.sendMessageEmbeds(eb.build(), questions.build()).addActionRow(button).queue();
-        textChannel.sendMessage("<@&1031964996583821383>").queue();
+        textChannel.sendMessage(supportRolePing).queue();
+    }
+
+    private boolean isInTickets(long catId) {
+        return discordBot.botConfig.getInt("opened_category") == catId;
     }
 
     @Override
@@ -312,12 +326,13 @@ public class CommandListener extends ListenerAdapter {
                     .addOption(OptionType.STRING, "questions", "Questions",true)
                     .queue();
 
-            discordBot.guild.upsertCommand("generateinvoice", "Create a invoice")
-                    .addOption(OptionType.NUMBER, "price", "The price for the invoice", true)
-                    .queue();
-
-            discordBot.guild.upsertCommand("claim", "Claim a order")
-                    .queue();
+            if(!discordBot.ticketPrefix.toLowerCase().equals("ticket")) {
+                discordBot.guild.upsertCommand("claim", "Claim a order")
+                        .queue();
+                discordBot.guild.upsertCommand("generateinvoice", "Create a invoice")
+                        .addOption(OptionType.NUMBER, "price", "The price for the invoice", true)
+                        .queue();
+            }
 
             discordBot.guild.upsertCommand("displaytickets", "Create the embed for tickets")
                     .queue();
