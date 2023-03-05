@@ -60,7 +60,7 @@ public class CommandListener extends ListenerAdapter {
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
-        if (event.getChannel() instanceof TextChannel && event.getChannel().getName().equals("vouches")) {
+        if (event.getChannel() instanceof TextChannel && event.getChannel().getName().contains("vouches")) {
             EmojiUtil[] vouchEmojis = {EmojiUtil.STAR, EmojiUtil.FLAME, EmojiUtil.TICK, EmojiUtil.HEART, EmojiUtil.DOLLAR, EmojiUtil.CHAMPAGNE, EmojiUtil.ROCKET};
             EmojiUtil randomEmoji = vouchEmojis[random.nextInt(vouchEmojis.length)];
             String emojiString = randomEmoji.emoji;
