@@ -7,25 +7,37 @@ import lol.maltest.servicesbot.util.EmojiUtil;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Icon;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageReaction;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
+import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
+import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
+import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
+import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.time.Instant;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class CommandListener extends ListenerAdapter {
 
@@ -37,16 +49,95 @@ public class CommandListener extends ListenerAdapter {
     TextChannel logsChannel;
     String supportRolePing;
 
+    Random random;
+
     public CommandListener(DiscordBot discordBot, JDA jda) {
         this.discordBot = discordBot;
         this.jda = jda;
         this.supportRolePing = "<@&" + discordBot.botConfig.getString("support_role") + ">";
+        this.random = new Random();
+    }
+
+    @Override
+    public void onMessageReceived(MessageReceivedEvent event) {
+        if (event.getChannel() instanceof TextChannel && event.getChannel().getName().equals("vouches")) {
+            EmojiUtil[] vouchEmojis = {EmojiUtil.STAR, EmojiUtil.FLAME, EmojiUtil.TICK, EmojiUtil.HEART, EmojiUtil.DOLLAR, EmojiUtil.CHAMPAGNE, EmojiUtil.ROCKET};
+            EmojiUtil randomEmoji = vouchEmojis[random.nextInt(vouchEmojis.length)];
+            String emojiString = randomEmoji.emoji;
+            Pattern pattern = Pattern.compile("<:[^:]+:(\\d+)>");
+            try (MatcherCloseable c1 = () -> pattern.matcher(emojiString)) {
+                Matcher matcher = c1.getMatcher();
+                if (matcher.find()) {
+                    String id = matcher.group(1);
+                    Pattern pattern1 = Pattern.compile("<:[^:]+:(\\d+)>");
+                    try (MatcherCloseable c2 = () -> pattern1.matcher(emojiString)) {
+                        Matcher matcher1 = c2.getMatcher();
+                        if (matcher1.matches()) {
+                            Emoji emoji = Emoji.fromCustom(matcher1.group(1), Long.parseLong(id), false);
+                            event.getMessage().addReaction(emoji).complete();
+                        } else {
+                            System.out.println("No emoji ID found for " + emojiString);
+                        }
+                    }
+                } else {
+                    System.out.println("No emoji ID found for " + emojiString);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @FunctionalInterface
+    interface MatcherCloseable extends Closeable {
+        Matcher getMatcher();
+        @Override
+        default void close() throws IOException {}
     }
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+        if (event.getName().equals("stealemoji")) {
+            if (!event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+                event.reply(EmojiUtil.CROSS.emoji + " You need `ADMINISTRATOR` permissions for this!").setEphemeral(true).queue();
+                return;
+            }
+            OptionMapping emoji = event.getOption("emoji");
+            Pattern pattern = Pattern.compile("<:[^:]+:(\\d+)>");
+            Matcher matcher = pattern.matcher(emoji.getAsString());
+            if(!matcher.matches()) {
+                event.reply(EmojiUtil.CROSS.emoji + " You didnt pass through a valid emoji").queue();
+                System.out.println(emoji.getAsString() +" was invalid emoji");
+                return;
+            }
+            String emojiId = matcher.group(1);
+            String url = "https://cdn.discordapp.com/emojis/" + emojiId + ".png";
+
+            // save
+
+            try {
+                // Download the emoji image from the URL
+                InputStream imageStream = new URL(url).openStream();
+                byte[] imageData = imageStream.readAllBytes();
+                imageStream.close();
+
+                // Create and save the emoji to the server
+                Pattern pattern1 = Pattern.compile("<:([^:]+):\\d+>");
+                Matcher matcher1 = pattern1.matcher(emoji.getAsString());
+                if(!matcher1.matches()) {
+                    event.reply(EmojiUtil.CROSS.emoji + " You didnt pass through a valid emoji").queue();
+                    System.out.println(emoji.getAsString() +" was invalid emoji");
+                    return;
+                }
+                RichCustomEmoji r = event.getGuild().createEmoji(matcher1.group(1), Icon.from(imageData)).complete();
+                event.reply(EmojiUtil.TICK.emoji + " Saved the emoji <:" + r.getName() + ":" + r.getId() + "> to the server!").queue();
+            } catch (IOException e) {
+                // Handle any errors that occur while downloading or creating the emoji
+                e.printStackTrace();
+            }
+        }
         if (event.getName().equals("createpanel")) {
-            if(!event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+            if (!event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
                 event.reply(EmojiUtil.CROSS.emoji + " You need `ADMINISTRATOR` permissions for this!").setEphemeral(true).queue();
                 return;
             }
@@ -72,8 +163,8 @@ public class CommandListener extends ListenerAdapter {
 
             event.reply(EmojiUtil.TICK.emoji + " Created that panel! Now you need to repost the Tickets Message").queue();
         }
-        if(event.getName().equals("claim")) {
-            if(!event.getMember().getRoles().contains(discordBot.supportRole)) {
+        if (event.getName().equals("claim")) {
+            if (!event.getMember().getRoles().contains(discordBot.supportRole)) {
                 event.reply(EmojiUtil.CROSS.emoji + " You need the support role for this!").setEphemeral(true).queue();
                 return;
             }
@@ -82,12 +173,12 @@ public class CommandListener extends ListenerAdapter {
 
             EmbedBuilder eb = new EmbedBuilder();
             eb.setTitle(discordBot.ticketPrefix + " Claimed");
-            eb.setDescription(EmojiUtil.TICK.emoji + " Your " + discordBot.ticketPrefix + " has been claimed by **<@" + event.getMember().getId() + ">**! They will complete this "+ discordBot.ticketPrefix + " for you.");
+            eb.setDescription(EmojiUtil.TICK.emoji + " Your " + discordBot.ticketPrefix + " has been claimed by **<@" + event.getMember().getId() + ">**! They will complete this " + discordBot.ticketPrefix + " for you.");
             eb.setColor(Color.decode("#2f3136"));
             event.replyEmbeds(eb.build()).queue();
         }
-        if(event.getName().equals("generateinvoice")) {
-            if(!event.getMember().hasPermission(Permission.MANAGE_PERMISSIONS)) {
+        if (event.getName().equals("generateinvoice")) {
+            if (!event.getMember().hasPermission(Permission.MANAGE_PERMISSIONS)) {
                 event.reply(EmojiUtil.CROSS.emoji + " You need `MANAGE_PERMISSIONS` permissions for this!").setEphemeral(true).queue();
                 return;
             }
@@ -100,13 +191,13 @@ public class CommandListener extends ListenerAdapter {
             event.replyEmbeds(eb.build()).queue();
         }
         if (event.getName().equals("blacklist")) {
-            if(!event.getMember().hasPermission(Permission.BAN_MEMBERS)) {
+            if (!event.getMember().hasPermission(Permission.BAN_MEMBERS)) {
                 event.reply(EmojiUtil.CROSS.emoji + " You need `BAN_MEMBERS` permissions for this!").setEphemeral(true).queue();
                 return;
             }
             OptionMapping name = event.getOption("user");
             ArrayList<String> blacklisted = new ArrayList<>();
-            if(discordBot.botConfig.get("blacklisted") != null) {
+            if (discordBot.botConfig.get("blacklisted") != null) {
                 blacklisted = (ArrayList<String>) discordBot.botConfig.get("blacklisted");
             }
             blacklisted.add(name.getAsMember().getId());
@@ -120,7 +211,7 @@ public class CommandListener extends ListenerAdapter {
             event.reply(EmojiUtil.TICK.emoji + " Blacklisted " + name.getAsMember().getAsMention() + " from using tickets!").queue();
         }
         if (event.getName().equals("unblacklist")) {
-            if(!event.getMember().hasPermission(Permission.BAN_MEMBERS)) {
+            if (!event.getMember().hasPermission(Permission.BAN_MEMBERS)) {
                 event.reply(EmojiUtil.CROSS.emoji + " You need `BAN_MEMBERS` permissions for this!").setEphemeral(true).queue();
                 return;
             }
@@ -138,33 +229,33 @@ public class CommandListener extends ListenerAdapter {
             event.reply(EmojiUtil.TICK.emoji + " Unblacklisted " + name.getAsMember().getAsMention() + " from using tickets!").queue();
         }
         if (event.getName().equals("adduser")) {
-            if(!isInTickets(event.getChannel().asTextChannel().getParentCategoryIdLong()) && event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+            if (!isInTickets(event.getChannel().asTextChannel().getParentCategoryIdLong()) && event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
                 event.reply(EmojiUtil.CROSS.emoji + " You cannot add users here!").queue();
                 return;
             }
-            if(event.getChannel().asTextChannel().getParentCategory().getId().equals(category.getId())) {
+            if (event.getChannel().asTextChannel().getParentCategory().getId().equals(category.getId())) {
                 OptionMapping name = event.getOption("user");
                 event.getChannel().asTextChannel().upsertPermissionOverride(name.getAsMember()).setAllowed(Permission.VIEW_CHANNEL).queue();
                 event.reply(EmojiUtil.TICK.emoji + " Added " + name.getAsMember().getAsMention() + " to the ticket!").queue();
             }
         }
         if (event.getName().equals("removeuser")) {
-            if(!isInTickets(event.getChannel().asTextChannel().getParentCategoryIdLong()) && event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+            if (!isInTickets(event.getChannel().asTextChannel().getParentCategoryIdLong()) && event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
                 event.reply(EmojiUtil.CROSS.emoji + " You cannot add users here!").queue();
                 return;
             }
-            if(event.getChannel().asTextChannel().getParentCategory().getId().equals(category.getId())) {
+            if (event.getChannel().asTextChannel().getParentCategory().getId().equals(category.getId())) {
                 OptionMapping name = event.getOption("user");
                 event.getChannel().asTextChannel().upsertPermissionOverride(name.getAsMember()).setDenied(Permission.VIEW_CHANNEL).queue();
                 event.reply(EmojiUtil.TICK.emoji + " Removed " + name.getAsMember().getAsMention() + " from the ticket!").queue();
             }
         }
-        if(event.getName().equals("displaytickets")) {
-            if(!event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+        if (event.getName().equals("displaytickets")) {
+            if (!event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
                 event.reply(EmojiUtil.CROSS.emoji + " You need `ADMINISTRATOR` permissions for this!").setEphemeral(true).queue();
                 return;
             }
-            if(discordBot.botConfig.getSection("panel").getKeys().size() == 0) {
+            if (discordBot.botConfig.getSection("panel").getKeys().size() == 0) {
                 event.reply(EmojiUtil.CROSS.emoji + " There is no ticket panels!").setEphemeral(true).queue();
             }
 
@@ -185,8 +276,8 @@ public class CommandListener extends ListenerAdapter {
             ArrayList<Button> buttons = new ArrayList<>();
             ArrayList<Button> buttons2 = new ArrayList<>();
 
-            for(PanelObject panelObject : discordBot.panelObjects) {
-                if(count >= 5) {
+            for (PanelObject panelObject : discordBot.panelObjects) {
+                if (count >= 5) {
                     buttons2.add(panelObject.getButton());
                 } else {
                     buttons.add(panelObject.getButton());
@@ -201,10 +292,10 @@ public class CommandListener extends ListenerAdapter {
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
-        for(PanelObject panelObject : discordBot.panelObjects) {
+        for (PanelObject panelObject : discordBot.panelObjects) {
             String button = panelObject.nameId + "_button";
             if (button.equals(event.getButton().getId())) {
-                if(discordBot.blacklistedUsers.contains(event.getMember().getId())) {
+                if (discordBot.blacklistedUsers.contains(event.getMember().getId())) {
                     event.reply(EmojiUtil.CROSS.emoji + " You are blacklisted from using tickets!").setEphemeral(true).queue();
                     return;
                 }
@@ -212,7 +303,7 @@ public class CommandListener extends ListenerAdapter {
                 return;
             }
         }
-        if(event.getButton().getId().startsWith("close_")) {
+        if (event.getButton().getId().startsWith("close_")) {
             String channelId = event.getButton().getId().replace("close_", "");
             TextChannel textChannel = discordBot.guild.getTextChannelById(channelId);
 
@@ -224,7 +315,7 @@ public class CommandListener extends ListenerAdapter {
             event.replyEmbeds(closeConfirm.build()).addActionRow(button).queue();
             return;
         }
-        if(event.getButton().getId().startsWith("confirm_")) {
+        if (event.getButton().getId().startsWith("confirm_")) {
             String channelId = event.getButton().getId().replace("confirm_", "");
             TextChannel textChannel = discordBot.guild.getTextChannelById(channelId);
             textChannel.getManager().setParent(closedCategory).queue();
@@ -239,7 +330,7 @@ public class CommandListener extends ListenerAdapter {
             event.replyEmbeds(ticket.build()).addActionRow(button, delet).queue();
             return;
         }
-        if(event.getButton().getId().startsWith("reopen_")) {
+        if (event.getButton().getId().startsWith("reopen_")) {
             String channelId = event.getButton().getId().replace("reopen_", "");
             TextChannel textChannel = discordBot.guild.getTextChannelById(channelId);
             textChannel.getManager().setParent(category).queue();
@@ -252,7 +343,7 @@ public class CommandListener extends ListenerAdapter {
             event.replyEmbeds(opened.build()).queue();
             return;
         }
-        if(event.getButton().getId().startsWith("delete_")) {
+        if (event.getButton().getId().startsWith("delete_")) {
             String channelId = event.getButton().getId().replace("delete_", "");
             TextChannel textChannel = discordBot.guild.getTextChannelById(channelId);
 
@@ -264,9 +355,9 @@ public class CommandListener extends ListenerAdapter {
 
     @Override
     public void onModalInteraction(ModalInteractionEvent event) {
-        for(PanelObject panelObject : discordBot.panelObjects) {
+        for (PanelObject panelObject : discordBot.panelObjects) {
             String modalId = panelObject.nameId + "_modal";
-            if(modalId.equals(event.getModalId())) {
+            if (modalId.equals(event.getModalId())) {
                 TextChannel textChannel = category.createTextChannel(discordBot.ticketPrefix + "-" + event.getMember().getEffectiveName()).complete();
                 textChannel.getManager().putPermissionOverride(event.getMember(), EnumSet.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND), null).queue();
                 textChannel.upsertPermissionOverride(event.getGuild().getPublicRole()).setDenied(Permission.VIEW_CHANNEL).queue();
@@ -286,13 +377,13 @@ public class CommandListener extends ListenerAdapter {
         EmbedBuilder questions = new EmbedBuilder();
         questions.setColor(Color.decode("#2f3136"));
 
-        for(ModalMapping modalMapping : modalMappings) {
+        for (ModalMapping modalMapping : modalMappings) {
             String result = "";
             String title = modalMapping.getId().replaceAll("()([A-Z])", "$1 $2");
             String[] words = title.split(" ");
-            for(String word: words) {
-                if(word.length() > 0)
-                 result += Character.toUpperCase(word.charAt(0)) + word.substring(1) + " ";
+            for (String word : words) {
+                if (word.length() > 0)
+                    result += Character.toUpperCase(word.charAt(0)) + word.substring(1) + " ";
             }
             System.out.println(result);
             questions.addField(result.replace("*", ""), modalMapping.getAsString(), false);
@@ -317,14 +408,14 @@ public class CommandListener extends ListenerAdapter {
         logsChannel = discordBot.guild.getTextChannelById(discordBot.botConfig.getString("logs_channel"));
 
 
-        if(discordBot.guild != null) {
+        if (discordBot.guild != null) {
             discordBot.guild.upsertCommand("createpanel", "Add answer")
                     .addOption(OptionType.STRING, "name", "The name of panel", true)
                     .addOption(OptionType.STRING, "emoji", "Emoji for button", true)
-                    .addOption(OptionType.STRING, "questions", "Questions",true)
+                    .addOption(OptionType.STRING, "questions", "Questions", true)
                     .queue();
 
-            if(!discordBot.ticketPrefix.toLowerCase().equals("ticket")) {
+            if (!discordBot.ticketPrefix.toLowerCase().equals("ticket")) {
                 discordBot.guild.upsertCommand("claim", "Claim a order")
                         .queue();
                 discordBot.guild.upsertCommand("generateinvoice", "Create a invoice")
@@ -349,6 +440,10 @@ public class CommandListener extends ListenerAdapter {
 
             discordBot.guild.upsertCommand("unblacklist", "Unblacklist user from opening tickets")
                     .addOption(OptionType.MENTIONABLE, "user", "The user to unblacklist", true)
+                    .queue();
+
+            discordBot.guild.upsertCommand("stealemoji", "Copy an emoji from another server and save it to this server")
+                    .addOption(OptionType.STRING, "emoji", "Emoji to clone", true)
                     .queue();
 
             System.out.println("Registered commands for guild " + discordBot.guild.getName() + ".");

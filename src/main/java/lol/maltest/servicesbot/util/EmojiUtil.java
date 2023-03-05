@@ -11,7 +11,9 @@ public enum EmojiUtil {
     HOURGLASS("<:MCS_hourglass:1034922327370105042>"),
     STAR("<:MCS_star:1034922328968155267>"),
     THUMBSDOWN("<:MCS_thumbsDown:1034922330268389457>"),
-    THUMBSUP("<:MCS_thumbsUp:1034922331878998176>");
+    THUMBSUP("<:MCS_thumbsUp:1034922331878998176>"),
+    CHAMPAGNE("<:MCS_Champagne:1081902432000409693>"),
+    ROCKET("<:MCS_Rocket:1081902578759114852>");
 
 
     public final String emoji;
