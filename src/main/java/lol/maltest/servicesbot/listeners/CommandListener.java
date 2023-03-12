@@ -174,7 +174,7 @@ public class CommandListener extends ListenerAdapter {
             EmbedBuilder eb = new EmbedBuilder();
             eb.setTitle(discordBot.ticketPrefix + " Claimed");
             eb.setDescription(EmojiUtil.TICK.emoji + " Your " + discordBot.ticketPrefix + " has been claimed by **<@" + event.getMember().getId() + ">**! They will complete this " + discordBot.ticketPrefix + " for you.");
-            eb.setColor(Color.decode("#2f3136"));
+            eb.setColor(Color.decode("#2b2d31"));
             event.replyEmbeds(eb.build()).queue();
         }
         if (event.getName().equals("generateinvoice")) {
@@ -187,7 +187,7 @@ public class CommandListener extends ListenerAdapter {
             EmbedBuilder eb = new EmbedBuilder();
             eb.setTitle("Invoice");
             eb.setDescription(EmojiUtil.DOLLAR.emoji + " Thank you for working with Mal's Coding Services. Please send **£" + price.getAsDouble() + "** to **mattd.123@yahoo.com** via PayPal. Think we did good? Tips are greatly appreciated!");
-            eb.setColor(Color.decode("#2f3136"));
+            eb.setColor(Color.decode("#2b2d31"));
             event.replyEmbeds(eb.build()).queue();
         }
         if (event.getName().equals("blacklist")) {
@@ -229,10 +229,11 @@ public class CommandListener extends ListenerAdapter {
             event.reply(EmojiUtil.TICK.emoji + " Unblacklisted " + name.getAsMember().getAsMention() + " from using tickets!").queue();
         }
         if (event.getName().equals("adduser")) {
-            if (!isInTickets(event.getChannel().asTextChannel().getParentCategoryIdLong()) && event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
-                event.reply(EmojiUtil.CROSS.emoji + " You cannot add users here!").queue();
+            if (!event.getMember().hasPermission(Permission.MESSAGE_MANAGE) || !isInTickets(event.getChannel().asTextChannel().getParentCategoryId())) {
+                event.reply(EmojiUtil.CROSS.emoji + " You cannot remove users here!").queue();
                 return;
             }
+
             if (event.getChannel().asTextChannel().getParentCategory().getId().equals(category.getId())) {
                 OptionMapping name = event.getOption("user");
                 event.getChannel().asTextChannel().upsertPermissionOverride(name.getAsMember()).setAllowed(Permission.VIEW_CHANNEL).queue();
@@ -240,8 +241,8 @@ public class CommandListener extends ListenerAdapter {
             }
         }
         if (event.getName().equals("removeuser")) {
-            if (!isInTickets(event.getChannel().asTextChannel().getParentCategoryIdLong()) && event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
-                event.reply(EmojiUtil.CROSS.emoji + " You cannot add users here!").queue();
+            if (!event.getMember().hasPermission(Permission.MESSAGE_MANAGE) || !isInTickets(event.getChannel().asTextChannel().getParentCategoryId())) {
+                event.reply(EmojiUtil.CROSS.emoji + " You cannot remove users here!").queue();
                 return;
             }
             if (event.getChannel().asTextChannel().getParentCategory().getId().equals(category.getId())) {
@@ -270,7 +271,7 @@ public class CommandListener extends ListenerAdapter {
                     "\n\uD83D\uDC40 **Staff Report**: If you think a staff member is abusing, open this type of support ticket. If the \"abusing\" staff member closes your ticket please contact a higher up.\n" +
                     "\n\uD83D\uDEA8 **Purchase Support**: If you believe there is a problem with your purchase and have waited over 15 minutes, open this type of support ticket.\n" +
                     "\nWe will try to reply as fast as possible. Please excessively don't ping staff members.");
-            eb.setColor(Color.decode("#2f3136"));
+            eb.setColor(Color.decode("#2b2d31"));
 
             int count = 1;
             ArrayList<Button> buttons = new ArrayList<>();
@@ -286,7 +287,7 @@ public class CommandListener extends ListenerAdapter {
             }
 
             event.reply("Done!").queue();
-            event.getChannel().sendMessageEmbeds(eb.build()).addActionRow(buttons).addActionRow(buttons2).queue();
+            event.getChannel().sendMessageEmbeds(eb.build()).addActionRow(buttons).queue();
         }
     }
 
@@ -308,7 +309,7 @@ public class CommandListener extends ListenerAdapter {
             TextChannel textChannel = discordBot.guild.getTextChannelById(channelId);
 
             EmbedBuilder closeConfirm = new EmbedBuilder();
-            closeConfirm.setColor(Color.decode("#2f3136"));
+            closeConfirm.setColor(Color.decode("#2b2d31"));
             closeConfirm.setTitle("Close Confirmination");
             closeConfirm.setDescription("Please confirm that you want to close this ticket");
             Button button = Button.danger("confirm_" + textChannel.getId(), "Close Ticket").withEmoji(Emoji.fromFormatted("✔"));
@@ -325,7 +326,7 @@ public class CommandListener extends ListenerAdapter {
 
             EmbedBuilder ticket = new EmbedBuilder();
             ticket.setTitle("Ticket Closed!");
-            ticket.setColor(Color.decode("#2f3136"));
+            ticket.setColor(Color.decode("#2b2d31"));
             ticket.setDescription("Closed by " + event.getMember().getAsMention() + ". Please choose what happens next");
             event.replyEmbeds(ticket.build()).addActionRow(button, delet).queue();
             return;
@@ -338,7 +339,7 @@ public class CommandListener extends ListenerAdapter {
             EmbedBuilder opened = new EmbedBuilder();
 
             opened.setTitle("Ticket Re Opened!");
-            opened.setColor(Color.decode("#2f3136"));
+            opened.setColor(Color.decode("#2b2d31"));
             opened.setDescription(event.getMember().getAsMention() + " Reopened the ticket");
             event.replyEmbeds(opened.build()).queue();
             return;
@@ -371,11 +372,11 @@ public class CommandListener extends ListenerAdapter {
     public void createEmbed(PanelObject panelObject, TextChannel textChannel, List<ModalMapping> modalMappings) {
         EmbedBuilder eb = new EmbedBuilder();
         eb.setTitle(panelObject.name);
-        eb.setColor(Color.decode("#2f3136"));
+        eb.setColor(Color.decode("#2b2d31"));
         eb.setDescription("Thank you for contacting us!\nPlease be patient for a staff member to reply!");
 
         EmbedBuilder questions = new EmbedBuilder();
-        questions.setColor(Color.decode("#2f3136"));
+        questions.setColor(Color.decode("#2b2d31"));
 
         for (ModalMapping modalMapping : modalMappings) {
             String result = "";
@@ -395,8 +396,8 @@ public class CommandListener extends ListenerAdapter {
         textChannel.sendMessage(supportRolePing).queue();
     }
 
-    private boolean isInTickets(long catId) {
-        return discordBot.botConfig.getInt("opened_category") == catId;
+    private boolean isInTickets(String catId) {
+        return Objects.equals(discordBot.botConfig.getString("opened_category"), catId);
     }
 
     @Override
