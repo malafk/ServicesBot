@@ -7,4 +7,32 @@ closed_category: "1029182646229684287"
 support_role: "1068585697155485770"
 prefix: "Order"
 blacklisted:
+embeds:
+  Mal's coding Services:
+    order: 0
+    colour: "#2b2d31"
+    description: "Welcome to Mal's Coding Services! Thank you for choosing us as a possible developer for your project. Please see the fields below and if you have any questions please open a questions ticket!"
+  What's Possible:
+    order: 1
+    colour: "#2b2d31"
+    description: "Mal's Coding Services can provide a solution for any problem related to programming or cybersecurity, with over **4+ years** in the specified fields. We can make websites, discord bots, minecraft plugins, java applications, scaling systems and so much more."
+  Why Choose Us:
+    order: 2
+    colour: "#2b2d31"
+    fields:
+      Bugs:
+        value: "If we happen to create any bugs in your program we will happily fix them — no questions asked."
+      Pricing:
+        value: "We believe in fair pricing for our clients and we will continue to offer the best prices possible."
+      Speed:
+        value: "Mal promises he will get every single commission done as fast as possible whilst preserving quality and making sure the code runs as proficient as possible."
+      Quality:
+        value: "With our team knowing many languages for 4+ years and many in the field of Computing Science in school, we can reassure you that your program will be the highest quality that it can be, and if it's a school project, expect to be given A's."
+      Reputation:
+        value: "As stated above, we have only been around since <t:1666058400:R> and have already gotten **25 real vouches**!"
+  Place Your Order:
+    order: 3
+    colour: "#2b2d31"
+    description: "Let's get your project done!\n\nPlease, click on the appropriate button below."
+    panel: true
 panel:

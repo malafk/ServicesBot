@@ -21,6 +21,7 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.CommandInteraction;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
@@ -36,8 +37,11 @@ import java.time.Instant;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class CommandListener extends ListenerAdapter {
 
@@ -91,8 +95,10 @@ public class CommandListener extends ListenerAdapter {
     @FunctionalInterface
     interface MatcherCloseable extends Closeable {
         Matcher getMatcher();
+
         @Override
-        default void close() throws IOException {}
+        default void close() throws IOException {
+        }
     }
 
     @Override
@@ -105,9 +111,9 @@ public class CommandListener extends ListenerAdapter {
             OptionMapping emoji = event.getOption("emoji");
             Pattern pattern = Pattern.compile("<:[^:]+:(\\d+)>");
             Matcher matcher = pattern.matcher(emoji.getAsString());
-            if(!matcher.matches()) {
+            if (!matcher.matches()) {
                 event.reply(EmojiUtil.CROSS.emoji + " You didnt pass through a valid emoji").queue();
-                System.out.println(emoji.getAsString() +" was invalid emoji");
+                System.out.println(emoji.getAsString() + " was invalid emoji");
                 return;
             }
             String emojiId = matcher.group(1);
@@ -124,9 +130,9 @@ public class CommandListener extends ListenerAdapter {
                 // Create and save the emoji to the server
                 Pattern pattern1 = Pattern.compile("<:([^:]+):\\d+>");
                 Matcher matcher1 = pattern1.matcher(emoji.getAsString());
-                if(!matcher1.matches()) {
+                if (!matcher1.matches()) {
                     event.reply(EmojiUtil.CROSS.emoji + " You didnt pass through a valid emoji").queue();
-                    System.out.println(emoji.getAsString() +" was invalid emoji");
+                    System.out.println(emoji.getAsString() + " was invalid emoji");
                     return;
                 }
                 RichCustomEmoji r = event.getGuild().createEmoji(matcher1.group(1), Icon.from(imageData)).complete();
@@ -259,19 +265,21 @@ public class CommandListener extends ListenerAdapter {
             if (discordBot.botConfig.getSection("panel").getKeys().size() == 0) {
                 event.reply(EmojiUtil.CROSS.emoji + " There is no ticket panels!").setEphemeral(true).queue();
             }
-
-            EmbedBuilder eb = new EmbedBuilder();
-            eb.setTitle("Open a ticket");
-            eb.setDescription("At MineBuddies players are our first priority so if you have any problems please do not hesitate to open a support ticket and a staff member will assist you as soon as possible. Please add as much detail you can on the form.\n" +
-                    "\nPlease choose the right topic as you will get assisted quicker.\n" +
-                    "\n\uD83D\uDEE1 **General Support**: If you have a question how to do something or any other casual server questions, open this type of support ticket.\n" +
-                    "\n\uD83D\uDC64 **Player Report**: Suspect a player is cheating or is someone breaking rules, open this type of support ticket.\n" +
-                    "\n\uD83D\uDC1E **Bug Report**: If you have found a server bug then you can create this type of ticket to help us improve the server. You may receive rewards for reporting bugs depending on the severity.\n" +
-                    "\n\uD83D\uDD75 **Appeal**: If you think you were wrongly punished or think you deserve a second chance, open this type of support ticket.\n" +
-                    "\n\uD83D\uDC40 **Staff Report**: If you think a staff member is abusing, open this type of support ticket. If the \"abusing\" staff member closes your ticket please contact a higher up.\n" +
-                    "\n\uD83D\uDEA8 **Purchase Support**: If you believe there is a problem with your purchase and have waited over 15 minutes, open this type of support ticket.\n" +
-                    "\nWe will try to reply as fast as possible. Please excessively don't ping staff members.");
-            eb.setColor(Color.decode("#2b2d31"));
+            HashMap<String, EmbedBuilder> embedBuilders = new HashMap<>();
+            discordBot.botConfig.getSection("embeds").getKeys().forEach(key -> {
+                EmbedBuilder eb = new EmbedBuilder();
+                eb.setColor(Color.decode(discordBot.botConfig.getString("embeds." + key + ".colour")));
+                String title = key.toString();
+                String description = discordBot.botConfig.getString("embeds." + key + ".description");
+                eb.setTitle(title);
+                eb.setDescription(description);
+                if (discordBot.botConfig.getSection("embeds." + key + ".fields") != null) {
+                    discordBot.botConfig.getSection("embeds." + key + ".fields").getKeys().forEach(k -> {
+                        eb.addField(k.toString(), discordBot.botConfig.getString("embeds." + key + ".fields." + k + ".value"), false);
+                    });
+                }
+                embedBuilders.put(key.toString(), eb);
+            });
 
             int count = 1;
             ArrayList<Button> buttons = new ArrayList<>();
@@ -286,10 +294,36 @@ public class CommandListener extends ListenerAdapter {
                 count++;
             }
 
-            event.reply("Done!").queue();
-            event.getChannel().sendMessageEmbeds(eb.build()).addActionRow(buttons).queue();
+            List<String> orderedKeys = discordBot.botConfig.getSection("embeds").getKeys().stream()
+                    .sorted(Comparator.comparingInt(key -> discordBot.botConfig.getInt("embeds." + key + ".order")))
+                    .map(String::valueOf)
+                    .collect(Collectors.toList());
+            sendOrderedEmbeds(orderedKeys, embedBuilders, 0, event, count, buttons, buttons2);
         }
     }
+
+    private void sendOrderedEmbeds(List<String> orderedKeys, HashMap<String, EmbedBuilder> embedBuilders, int currentIndex, SlashCommandInteractionEvent event, int count, ArrayList<Button> buttons, ArrayList<Button> buttons2) {
+        if (currentIndex < orderedKeys.size()) {
+            String key = orderedKeys.get(currentIndex);
+            EmbedBuilder builder = embedBuilders.get(key);
+
+            Runnable next = () -> sendOrderedEmbeds(orderedKeys, embedBuilders, currentIndex + 1, event, count, buttons, buttons2);
+
+            if (discordBot.botConfig.getBoolean("embeds." + key + ".panel")) {
+                if (count > 5) {
+                    event.getChannel().sendMessageEmbeds(builder.build()).addActionRow(buttons).addActionRow(buttons2).queue(success -> next.run());
+                } else {
+                    event.getChannel().sendMessageEmbeds(builder.build()).addActionRow(buttons).queue(success -> next.run());
+                }
+            } else {
+                event.getChannel().sendMessageEmbeds(builder.build()).queue(success -> next.run());
+            }
+        } else {
+            event.reply("Done!").queue();
+        }
+    }
+
+
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
@@ -446,6 +480,7 @@ public class CommandListener extends ListenerAdapter {
             discordBot.guild.upsertCommand("stealemoji", "Copy an emoji from another server and save it to this server")
                     .addOption(OptionType.STRING, "emoji", "Emoji to clone", true)
                     .queue();
+
 
             System.out.println("Registered commands for guild " + discordBot.guild.getName() + ".");
         } else {
